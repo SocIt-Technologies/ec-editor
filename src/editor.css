@@ -1,0 +1,20 @@
+html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* A special term in the "[[" list: its key, then its text */
+.special-term {
+    display: flex;
+    flex-direction: column;
+    padding: 2px 4px;
+    max-width: 420px;
+}
+
+.special-term i {
+    color: #616161;
+    white-space: normal;
+}

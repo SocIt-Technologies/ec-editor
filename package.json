@@ -1,0 +1,19 @@
+{
+  "name": "ec-editor",
+  "version": "1.0.0",
+  "description": "EasyCare's rich-text editor: CKEditor 5 in a standalone page the EMR embeds in an iframe and talks to by postMessage",
+  "license": "BSD-2-Clause",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "ckeditor5": "49.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vite": "6.4.5"
+  }
+}

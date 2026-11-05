@@ -1,0 +1,190 @@
+/*
+ * The editing area laid out as the EMR prints the report, so it wraps, sizes and breaks the same: an A4 page box
+ * with the print's content width (210 mm less 16 mm margins, 17.8 cm), and the same font, size and block rules as
+ * the EMR's print preview (report.component.less .report-content). CKEditor 5's own content styles that the
+ * preview doesn't have - table borders, cell padding, figure margins - are reset here.
+ *
+ * CKEditor 5's own content styles aren't loaded (main.ts imports its editor UI styles only); its editing UI rules
+ * are outranked by starting each rule here with ".ck.ck-editor__main .ck-content".
+ */
+@font-face {
+    font-family: "EasyCareFont";
+    src: local("EasyCareFont"), url("./fonts/Roboto-Regular.ttf") format("truetype");
+}
+
+/* The grey desk the page sits on, which scrolls; the page break layer is placed over the page within it */
+.ck.ck-editor__main {
+    background: #f0f0f0;
+    overflow: auto;
+    position: relative;
+}
+
+.ec-page-breaks {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* The page */
+.ck.ck-editor__main > .ck-editor__editable.ck-content {
+    box-sizing: content-box;
+    width: 17.8cm;
+    min-height: 24cm;
+    margin: 30px auto;
+    padding: 1cm 2cm 2cm;
+    border: 1px solid #d3d3d3;
+    border-radius: 5px;
+    background: #fff;
+    position: relative;
+    overflow: visible;
+
+    font-family: "EasyCareFont", Roboto, "Helvetica Neue", sans-serif;
+    font-size: 16px;
+    line-height: 18px;
+    color: #000;
+    word-wrap: break-word;
+}
+
+.ck.ck-editor__main > .ck-editor__editable.ck-content.ck-focused {
+    border: 1px solid #9e9e9e;
+    box-shadow: none;
+}
+
+.ck.ck-editor__main .ck-content p {
+    margin: 0;
+    padding: 0;
+}
+
+.ck.ck-editor__main .ck-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.ck.ck-editor__main .ck-content ol, .ck.ck-editor__main .ck-content ul, .ck.ck-editor__main .ck-content dl {
+    margin-right: 0;
+    padding: 0 40px;
+}
+
+.ck.ck-editor__main .ck-content blockquote {
+    font-style: italic;
+    font-family: Georgia, Times, "Times New Roman", serif;
+    margin: 1em 40px;
+    padding: 2px 8px 2px 20px;
+    border: 0 solid #ccc;
+    border-left-width: 5px;
+}
+
+.ck.ck-editor__main .ck-content pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    tab-size: 4;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+.ck.ck-editor__main .ck-content :is(h1, h2, h3, h4, h5, h6) {
+    font-family: inherit;
+    font-weight: normal;
+    letter-spacing: normal;
+    line-height: 1.2;
+}
+.ck.ck-editor__main .ck-content h1 { font-size: 2em; margin: 0.67em 0; }
+.ck.ck-editor__main .ck-content h2 { font-size: 1.5em; margin: 0.83em 0; }
+.ck.ck-editor__main .ck-content h3 { font-size: 1.17em; margin: 1em 0; }
+
+.ck.ck-editor__main .ck-content a {
+    color: #0782c1;
+}
+
+.ck.ck-editor__main .ck-content hr {
+    border: 0;
+    border-top: 1px solid #ccc;
+    height: 0;
+    background: none;
+}
+
+/* Tables as the browser and the preview draw them: CKEditor 5's content styles aren't loaded, so the table's own
+   attributes (border, cellspacing, cellpadding) and inline styles decide borders, spacing, widths and alignment.
+   CKEditor 5 wraps each table in a figure - here it takes no room of its own. */
+.ck.ck-editor__main .ck-content figure.table {
+    display: block;
+    margin: 0;
+}
+.ck.ck-editor__main .ck-content table {
+    max-width: 100% !important;
+}
+/* CKEditor moves a table that opens the page (or a quote) down by 32px, to make room for its selection handle - the
+   print has no such gap; the handle sits in the page's top margin instead */
+.ck.ck-editor__main > .ck-editor__editable.ck-content > .ck-widget.ck-widget_with-selection-handle:first-child,
+.ck.ck-editor__main .ck-content blockquote > .ck-widget.ck-widget_with-selection-handle:first-child {
+    margin-top: 0;
+}
+/* A cell's single paragraph, which CKEditor 5 shows as an inline-block span - inline, it sat on a line box and
+   made each row a few pixels taller than in print */
+.ck.ck-editor__main .ck-content .ck-table-bogus-paragraph {
+    display: block;
+}
+
+/* A table without a border attribute gets light guides in the editor only, as CKEditor 4's "show borders" did -
+   outlines, so they take no room and the text wraps and breaks pages exactly as it prints */
+.ck.ck-editor__main .ck-content table:not([border]),
+.ck.ck-editor__main .ck-content table:not([border]) > :is(thead, tbody, tfoot) > tr > :is(td, th) {
+    outline: 1px dotted #d3d3d3;
+    outline-offset: -1px;
+}
+
+.ck.ck-editor__main .ck-content .table_noborder {
+    border-collapse: collapse;
+    border: none;
+}
+.ck.ck-editor__main .ck-content .table_center {
+    margin-left: auto;
+    margin-right: auto;
+}
+.ck.ck-editor__main .ck-content .img_150px img {
+    width: 150px !important;
+}
+
+/* Images: CKEditor 5's figure for a block image, and its wrapper for an inline one, take no room of their own */
+.ck.ck-editor__main .ck-content figure.image {
+    display: block;
+    margin: 0;
+    width: auto;
+    min-width: 0;
+}
+.ck.ck-editor__main .ck-content .image-inline {
+    display: inline;
+    max-width: 100%;
+}
+.ck.ck-editor__main .ck-content .image-inline img,
+.ck.ck-editor__main .ck-content figure.image img {
+    min-width: 0;
+    display: inline;
+    aspect-ratio: auto;
+}
+/* An image in a table cell shrinks to the cell as it prints (CKEditor lets it overflow the cell instead) */
+.ck.ck-editor__main .ck-content :is(td, th) .image-inline img {
+    max-width: 100%;
+}
+
+/* Where the printed pages end (pages.ts): a dashed line and the next page's number, drawn over the page edge */
+.ec-page-break {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px dashed #9e9e9e;
+    pointer-events: none;
+    user-select: none;
+}
+.ec-page-break span {
+    position: absolute;
+    right: 4px;
+    top: 1px;
+    font: 10px sans-serif;
+    color: #9e9e9e;
+}
