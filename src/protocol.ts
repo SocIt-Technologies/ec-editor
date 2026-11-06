@@ -9,6 +9,8 @@
  *   terms    {terms}                  - the special terms typed after "[[" (they may arrive after init)
  *   footer   {footer}                 - the report footer printed on every page, for where the pages end
  *                                       (also in init)
+ *   letterhead {mm}                   - height of a letterhead pre-printed on the hospital's sheets: every page
+ *                                       starts below it (also in init, as letterheadMm; 0 for plain paper)
  * editor -> EMR
  *   ready                             - listening; send init
  *   change   {html}                   - the doctor changed the content (at most every 300 ms)
@@ -19,10 +21,11 @@ export interface SpecialTerm {
 }
 
 export type ToEditor =
-    | { type: 'init'; html: string; readOnly?: boolean; terms?: SpecialTerm[]; footer?: string }
+    | { type: 'init'; html: string; readOnly?: boolean; terms?: SpecialTerm[]; footer?: string; letterheadMm?: number }
     | { type: 'setData'; html: string }
     | { type: 'terms'; terms: SpecialTerm[] }
-    | { type: 'footer'; footer: string };
+    | { type: 'footer'; footer: string }
+    | { type: 'letterhead'; mm: number };
 
 export type FromEditor =
     | { type: 'ready' }

@@ -22,7 +22,8 @@ standalone page that the EasyCare EMR embeds in an iframe and talks to only by `
 | Editor → EMR | `change {html}` | The user changed the content (at most every 300 ms) |
 
 Both sides accept messages only from the other's window and origin. The editor is served beside the EMR (same
-origin); for local development set `VITE_EMR_ORIGIN` (e.g. `http://localhost:4200`).
+origin). For local development, `npm run dev` serves it at `http://localhost:5174/editor/` and accepts the EMR's
+`ng serve` at `VITE_EMR_ORIGIN` (`.env.development`: `http://localhost:4200`).
 
 ## Features
 
