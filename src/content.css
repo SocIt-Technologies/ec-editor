@@ -31,7 +31,8 @@
     width: 17.8cm;
     min-height: 24cm;
     margin: 30px auto;
-    padding: 1cm 2cm 2cm;
+    /* The top margin leaves room for a letterhead pre-printed on the hospital's sheets (main.ts sets it) */
+    padding: calc(1cm + var(--ec-letterhead, 0mm)) 2cm 2cm;
     border: 1px solid #d3d3d3;
     border-radius: 5px;
     background: #fff;
@@ -117,6 +118,20 @@
 .ck.ck-editor__main .ck-content table {
     max-width: 100% !important;
 }
+/* CKEditor moves a table's width and height onto the figure: the table fills it, and the figure sits where the
+   table does in print - centred by margin-left/right: auto or align="center", right-aligned by align="right" */
+.ck.ck-editor__main .ck-content figure.table[style*="width"] > table {
+    width: 100%;
+}
+.ck.ck-editor__main .ck-content figure.table[style*="height"] > table {
+    height: 100%;
+}
+.ck.ck-editor__main .ck-content figure.table:has(> table[style*="margin-left:auto"], > table[align="center" i], > table[align="right" i]) {
+    margin-left: auto;
+}
+.ck.ck-editor__main .ck-content figure.table:has(> table[style*="margin-right:auto"], > table[align="center" i]) {
+    margin-right: auto;
+}
 /* CKEditor moves a table that opens the page (or a quote) down by 32px, to make room for its selection handle - the
    print has no such gap; the handle sits in the page's top margin instead */
 .ck.ck-editor__main > .ck-editor__editable.ck-content > .ck-widget.ck-widget_with-selection-handle:first-child,
@@ -129,12 +144,22 @@
     display: block;
 }
 
-/* A table without a border attribute gets light guides in the editor only, as CKEditor 4's "show borders" did -
-   outlines, so they take no room and the text wraps and breaks pages exactly as it prints */
-.ck.ck-editor__main .ck-content table:not([border]),
-.ck.ck-editor__main .ck-content table:not([border]) > :is(thead, tbody, tfoot) > tr > :is(td, th) {
+/* A table without borders (no border attribute, or border="0") gets light guides in the editor only, as CKEditor
+   4's "show borders" did - outlines, so they take no room and the text wraps and breaks pages exactly as it prints */
+.ck.ck-editor__main .ck-content :is(table:not([border]), table[border="0"]),
+.ck.ck-editor__main .ck-content :is(table:not([border]), table[border="0"]) > :is(thead, tbody, tfoot) > tr > :is(td, th) {
     outline: 1px dotted #d3d3d3;
     outline-offset: -1px;
+}
+
+/* CKEditor gives every editable cell a 1px transparent border (.ck .ck-editor__nested-editable), which made each
+   row 2px taller than in print. Cells get print's own instead: 1px inset in a table with a border, none in one
+   without. A cell's own inline style still wins over both. */
+.ck.ck-editor__main .ck-content table :is(td, th).ck-editor__nested-editable {
+    border: none;
+}
+.ck.ck-editor__main .ck-content table[border]:not([border="0"]) > :is(thead, tbody, tfoot) > tr > :is(td, th).ck-editor__nested-editable {
+    border: 1px inset;
 }
 
 .ck.ck-editor__main .ck-content .table_noborder {
@@ -169,6 +194,36 @@
 /* An image in a table cell shrinks to the cell as it prints (CKEditor lets it overflow the cell instead) */
 .ck.ck-editor__main .ck-content :is(td, th) .image-inline img {
     max-width: 100%;
+}
+
+/* The page break widget (CKEditor 5's own look, from its content styles, which aren't loaded): a dashed line with
+   a "Page break" label. In print it takes no room; pages.ts starts the next page below it. */
+.ck.ck-editor__main .ck-content .page-break {
+    position: relative;
+    clear: both;
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ck.ck-editor__main .ck-content .page-break::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    border-bottom: 2px dashed #c4c4c4;
+}
+.ck.ck-editor__main .ck-content .page-break__label {
+    position: relative;
+    z-index: 1;
+    display: block;
+    padding: .3em .6em;
+    border: 1px solid #c4c4c4;
+    border-radius: 2px;
+    background: #fff;
+    color: #333;
+    font: bold 10px sans-serif;
+    text-transform: uppercase;
+    user-select: none;
 }
 
 /* Where the printed pages end (pages.ts): a dashed line and the next page's number, drawn over the page edge */

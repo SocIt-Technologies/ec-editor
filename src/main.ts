@@ -13,6 +13,7 @@ import './content.css';
 import { LineHeight } from './plugins/lineheight';
 import { TextCase } from './plugins/textcase';
 import { ImageEmbed } from './plugins/imageembed';
+import { TableFormat } from './plugins/tableformat';
 import { drawPageBreaks } from './pages';
 import type { FromEditor, SpecialTerm, ToEditor } from './protocol';
 
@@ -26,6 +27,8 @@ let editor: ClassicEditor | undefined;
 let terms: SpecialTerm[] = [];
 /** The report footer printed on every page - its height decides where the pages end. */
 let footer = '';
+/** Height (mm) of a letterhead pre-printed on the hospital's sheets - every page starts below it; 0 for plain paper. */
+let letterheadMm = 0;
 /** Set while the EMR's setData is applied, so it isn't sent back as the doctor's change. */
 let applyingEmrData = false;
 let changeTimer: number | undefined;
@@ -34,7 +37,7 @@ let pagesTimer: number | undefined;
 /**
  * The content as the EMR saves, previews and prints it - as CKEditor 4 wrote it: CKEditor 5 wraps tables and block
  * images in a <figure>, which the preview, the print and AW know nothing of, so each goes back to the bare table or
- * image, keeping a width the figure was given (a resized table or image).
+ * image, keeping the sizes CKEditor moves onto the figure (width and height, and their min/max).
  */
 function printHtml(html: string): string {
     const body = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html').body;
@@ -43,8 +46,11 @@ function printHtml(html: string): string {
         if (!inner) {
             return;
         }
-        if (figure.style.width && !inner.style.width) {
-            inner.style.width = figure.style.width;
+        for (const size of ['width', 'height', 'min-width', 'max-width', 'min-height', 'max-height']) {
+            const value = figure.style.getPropertyValue(size);
+            if (value && !inner.style.getPropertyValue(size)) {
+                inner.style.setProperty(size, value);
+            }
         }
         figure.replaceWith(inner);
     });
@@ -58,9 +64,16 @@ function schedulePages() {
         const page = document.querySelector<HTMLElement>('.ck-editor__main > .ck-editor__editable');
         const layer = document.querySelector<HTMLElement>('.ec-page-breaks');
         if (page && layer) {
-            drawPageBreaks(page, layer, footer);
+            drawPageBreaks(page, layer, footer, letterheadMm);
         }
     }, 200);
+}
+
+/** The first page starts below the letterhead too (content.css pads the page by --ec-letterhead). */
+function setLetterhead(mm: number | undefined) {
+    letterheadMm = Math.max(0, Number(mm) || 0);
+    document.documentElement.style.setProperty('--ec-letterhead', letterheadMm + 'mm');
+    schedulePages();
 }
 
 function send(message: FromEditor) {
@@ -76,6 +89,7 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
         case 'init':
             terms = message.terms ?? [];
             footer = message.footer ?? '';
+            setLetterhead(message.letterheadMm);
             if (!editor) {
                 create(message.html ?? '', !!message.readOnly);
             }
@@ -94,6 +108,9 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
             footer = message.footer ?? '';
             schedulePages();
             break;
+        case 'letterhead':
+            setLetterhead(message.mm);
+            break;
     }
 });
 
@@ -105,7 +122,8 @@ async function create(html: string, readOnly: boolean) {
             FontFamily, FontSize, FontColor, FontBackgroundColor, Alignment, Link, List, Indent, IndentBlock, BlockQuote,
             Image, ImageToolbar, ImageResize, ImageStyle, ImageInsert, ImageUpload, ImageEmbed, Table, TableToolbar,
             TableColumnResize, PageBreak, SpecialCharacters,
-            SpecialCharactersEssentials, PasteFromOffice, GeneralHtmlSupport, Mention, Fullscreen, LineHeight, TextCase
+            SpecialCharactersEssentials, PasteFromOffice, GeneralHtmlSupport, Mention, Fullscreen, LineHeight, TextCase,
+            TableFormat
         ],
         toolbar: {
             items: [
@@ -132,13 +150,16 @@ async function create(html: string, readOnly: boolean) {
             toolbar: ['imageStyle:inline', 'imageStyle:block', '|', 'imageTextAlternative'],
             insert: { integrations: ['upload', 'url'] }
         },
-        // No table/cell properties: they turn a table's inline styles into their own settings and lose some on the
-        // way (e.g. margin-left/right: auto, which centres the templates' tables); without them each table keeps
-        // its inline styles exactly (General HTML Support below), as the preview and print need
+        // No table/cell properties: they turn a table's attributes and inline styles into their own settings and
+        // lose many on the way. Tried on the 101 hospital templates with tables, every one changed on save: the
+        // border attribute, the centring (margin-left/right: auto) and the cells' borders were dropped, cellpadding
+        // and align rewritten. Without them each table keeps its HTML (General HTML Support below), as the preview
+        // and print need. Borders, spacing, padding, width and alignment are set from TableFormat's buttons
+        // (plugins/tableformat.ts), which change only the setting edited.
         // CKEditor's "hidden borders" draw a real border on borderless cells, which makes the rows taller than in
         // print; content.css draws its guides as outlines instead, which take no room
         table: {
-            contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells'],
+            contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells', '|', 'ecTableBorders', 'ecTableFormat', 'ecCellFormat'],
             showHiddenBorders: false
         },
         // Whatever the CKEditor 4 reports hold that CKEditor 5 has no feature for (classes, inline styles, other

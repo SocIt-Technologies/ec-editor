@@ -13,17 +13,26 @@ const PAGE_MARGIN_BOTTOM_MM = 10;
 /** Elements the print moves to the next page whole (break-inside: avoid) */
 const BREAK_UNITS = 'p,li,h1,h2,h3,h4,h5,h6,pre,blockquote,div,td,th';
 
-/** CKEditor's own elements inside the content - column resizers, widget handles - which the print doesn't have */
-const EDITOR_UI = '.ck-table-column-resizer, .ck-widget__type-around, .ck-widget__selection-handle, .ck-fake-selection-container';
+/**
+ * CKEditor's own elements inside the content - column resizers, widget handles, the page break widget and its
+ * label - which take no room in print
+ */
+const EDITOR_UI = '.ck-table-column-resizer, .ck-widget__type-around, .ck-widget__selection-handle, .ck-fake-selection-container, .page-break';
+/** break-before / break-after values that start a new page */
+const PAGE = ['page', 'always', 'left', 'right', 'recto', 'verso'];
+
+/** A page break the author put in: the page must end by `fit` (the break's top), and the next starts at `at`. */
+interface Forced { fit: number; at: number }
 
 interface Box { top: number; bottom: number; text: boolean }
 
 /**
  * Redraws the page break lines over the editing page, on layer - an element beside the page, not in it: CKEditor
  * owns the page's DOM and would remove or re-render anything added there. footerHtml is the report footer printed
- * on every page.
+ * on every page; letterheadMm the height of a letterhead pre-printed at the top of every sheet, which print leaves
+ * room for.
  */
-export function drawPageBreaks(page: HTMLElement, layer: HTMLElement, footerHtml: string) {
+export function drawPageBreaks(page: HTMLElement, layer: HTMLElement, footerHtml: string, letterheadMm: number) {
     layer.replaceChildren();
     layer.style.top = page.offsetTop + 'px';
     layer.style.left = page.offsetLeft + 'px';
@@ -43,7 +52,7 @@ export function drawPageBreaks(page: HTMLElement, layer: HTMLElement, footerHtml
         .reduce((w, el) => Math.max(w, el.getBoundingClientRect().right - contentLeft), contentW);
     const scale = widest > contentW + 1 ? contentW / widest : 1;
     const footerH = footerHtml ? footerHeight(page, footerHtml, contentW / scale) : 0;
-    const usableH = (PAGE_HEIGHT_MM - PAGE_MARGIN_TOP_MM - PAGE_MARGIN_BOTTOM_MM) * MM / scale - footerH;
+    const usableH = (PAGE_HEIGHT_MM - PAGE_MARGIN_TOP_MM - letterheadMm - PAGE_MARGIN_BOTTOM_MM) * MM / scale - footerH;
     if (usableH <= 0) {
         return;
     }
@@ -53,9 +62,38 @@ export function drawPageBreaks(page: HTMLElement, layer: HTMLElement, footerHtml
     const total = range.getBoundingClientRect().bottom - top0;
     const boxes = unbreakableBoxes(page, usableH, top0);
 
+    // The editor's page break (a widget: class page-break) and any break-before/after a report's HTML carries.
+    // In print the widget takes no room, so the page must hold what comes before it, and the next page starts
+    // below it. As in print, two in a row leave a blank page, and one at the very end adds a blank last page.
+    const forced: Forced[] = [];
+    page.querySelectorAll<HTMLElement>('.page-break, [style*="break-"]').forEach(el => {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        if (el.classList.contains('page-break') || PAGE.includes(cs.breakAfter)) {
+            forced.push({ fit: r.top - top0, at: r.bottom - top0 });
+        } else if (PAGE.includes(cs.breakBefore)) {
+            forced.push({ fit: r.top - top0, at: r.top - top0 });
+        }
+    });
+    forced.sort((a, b) => a.at - b.at);
+
     let start = 0;
-    for (let n = 2; start + usableH < total && n < 200; n++) {
-        start = cutAbove(boxes, start, start + usableH);
+    let next = 0;
+    let afterBreak = false;
+    for (let n = 2; n < 200; n++) {
+        // Skip breaks already behind this page; one right at its top changes nothing, unless a break began the page
+        while (next < forced.length && forced[next].fit < start + (afterBreak ? -0.5 : 0.5)) {
+            next++;
+        }
+        if (next < forced.length && forced[next].fit <= start + usableH) {
+            start = forced[next++].at;
+            afterBreak = true;
+        } else if (start + usableH < total) {
+            start = cutAbove(boxes, start, start + usableH);
+            afterBreak = false;
+        } else {
+            break;
+        }
         const line = document.createElement('div');
         line.className = 'ec-page-break';
         line.style.top = (padTop + start) + 'px';
